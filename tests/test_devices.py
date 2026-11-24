@@ -1,7 +1,7 @@
 import asyncio
 
 from tapo_hub.cli import _build_parser
-from tapo_hub.devices import get_device_records, get_measurement
+from tapo_hub.devices import get_device_records, get_measurement, redact_sensitive
 
 
 def test_temperature_from_decoded_fields_formats_celsius():
@@ -15,6 +15,21 @@ def test_temperature_from_decoded_fields_formats_celsius():
 
     assert get_measurement(record, "temperature") == (
         25.299999237060547,
+        "°C",
+    )
+
+
+def test_t310_api_current_temp_and_temp_unit_fields():
+    record = {
+        "parsed_data": {
+            "current_temp": 25.399999618530273,
+            "temp_unit": "celsius",
+        },
+        "api_data": {},
+    }
+
+    assert get_measurement(record, "temperature") == (
+        25.399999618530273,
         "°C",
     )
 
@@ -80,3 +95,15 @@ def test_raw_api_fields_are_kept_and_name_is_decoded():
     assert records[0]["name"] == "Server room"
     assert records[0]["api_data"]["extra_sensor_field"] == "kept"
     assert records[0]["parsed_data"]["current_temperature"] == 21.5
+
+
+def test_sensitive_fields_are_redacted_recursively():
+    data = {
+        "master_key": "should-not-be-printed",
+        "nested": [{"refresh_token": "also-private", "status": "online"}],
+    }
+
+    assert redact_sensitive(data) == {
+        "master_key": "<redacted>",
+        "nested": [{"refresh_token": "<redacted>", "status": "online"}],
+    }

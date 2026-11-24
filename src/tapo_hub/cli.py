@@ -28,7 +28,7 @@ from .credentials import (
     get_password,
     save_password,
 )
-from .devices import get_device_records, get_measurement
+from .devices import get_device_records, get_measurement, redact_sensitive
 
 console = Console()
 error_console = Console(stderr=True)
@@ -202,7 +202,14 @@ def _display_all_data(
     records: list[dict[str, Any]], as_json: bool, hub_ip: str
 ) -> None:
     if as_json:
-        print(json.dumps(records, ensure_ascii=False, indent=2, default=str))
+        print(
+            json.dumps(
+                redact_sensitive(records),
+                ensure_ascii=False,
+                indent=2,
+                default=str,
+            )
+        )
         return
     if not records:
         console.print(f"No child devices found on H100 at {hub_ip}.")
@@ -216,13 +223,13 @@ def _display_all_data(
         fields.add_column(overflow="fold")
         fields.add_row("[bold]Device ID[/]", str(record.get("device_id") or "—"))
 
-        api_data = record.get("api_data") or {}
+        api_data = redact_sensitive(record.get("api_data") or {})
         if api_data:
             fields.add_row(
                 "[bold]All API fields[/]",
                 JSON(json.dumps(api_data, ensure_ascii=False, indent=2, default=str)),
             )
-        parsed_data = record.get("parsed_data") or {}
+        parsed_data = redact_sensitive(record.get("parsed_data") or {})
         if parsed_data:
             fields.add_row(
                 "[bold]Decoded fields[/]",

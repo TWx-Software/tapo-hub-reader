@@ -6,6 +6,14 @@ from typing import Any
 
 PAGE_SIZE = 10
 MAX_PAGES = 100
+SENSITIVE_FIELDS = {
+    "master_key",
+    "password",
+    "access_token",
+    "refresh_token",
+    "token",
+    "secret",
+}
 
 
 async def _get_raw_children(hub: Any) -> list[dict[str, Any]]:
@@ -129,8 +137,20 @@ def _find_value(data: Any, candidate_keys: set[str]) -> Any | None:
 
 def get_measurement(record: dict[str, Any], metric: str) -> tuple[Any, str] | None:
     if metric == "temperature":
-        keys = {"current_temperature", "currenttemperature"}
-        unit_keys = {"temperature_unit", "temperatureunit"}
+        # Tapo's hub API uses `current_temp`/`temp_unit`, while some devices
+        # and library versions expose the longer `current_temperature` name.
+        keys = {
+            "current_temp",
+            "currenttemperature",
+            "current_temperature",
+            "currenttemp",
+        }
+        unit_keys = {
+            "temp_unit",
+            "tempunit",
+            "temperature_unit",
+            "temperatureunit",
+        }
     else:
         keys = {"current_humidity", "currenthumidity"}
         unit_keys = set()
@@ -153,3 +173,19 @@ def get_measurement(record: dict[str, Any], metric: str) -> tuple[Any, str] | No
                 unit = unit_text
         return value, unit
     return None
+
+
+def redact_sensitive(value: Any) -> Any:
+    """Mask credential-like fields before data is printed or serialized."""
+    if isinstance(value, dict):
+        return {
+            key: (
+                "<redacted>"
+                if str(key).lower() in SENSITIVE_FIELDS
+                else redact_sensitive(item)
+            )
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [redact_sensitive(item) for item in value]
+    return value

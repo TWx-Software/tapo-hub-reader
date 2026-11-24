@@ -12,6 +12,7 @@ interpret, and can print temperature or humidity readings by themselves.
 
 - Discover and list child devices paired with an H100.
 - Display the complete child-device data returned by the local API.
+- Redact key/token/password fields in displayed and JSON output.
 - Show temperature (`-t`) or humidity (`-h`) values, with a raw numeric mode.
 - Save the Tapo account password in the desktop's system keyring—not in this
   project or its configuration file.
