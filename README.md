@@ -13,7 +13,9 @@ interpret, and can print temperature or humidity readings by themselves.
 - Discover and list child devices paired with an H100.
 - Display the complete child-device data returned by the local API.
 - Redact key/token/password fields in displayed and JSON output.
-- Show temperature (`-t`) or humidity (`-h`) values, with a raw numeric mode.
+- Show temperature (`-t`) or humidity (`-h`) values, with a number-only
+  `--short` mode.
+- Launch a polished local browser dashboard with `tapo-hub gui`.
 - Save the Tapo account password in the desktop's system keyring—not in this
   project or its configuration file.
 - Read locally from the H100; no cloud dashboard or database is required.
@@ -65,12 +67,18 @@ tapo-hub                 # Full data for all child devices
 tapo-hub --list          # Names, models, and IDs
 tapo-hub -t              # Temperature readings
 tapo-hub -h              # Humidity readings
-tapo-hub -t --raw        # Numeric temperature values only
-tapo-hub -h --raw        # Numeric humidity values only
+tapo-hub -t --short      # Numbers only, one per sensor
+tapo-hub -h --short      # Numbers only, one per sensor
 tapo-hub --json          # Full data as JSON
 tapo-hub --help          # Help (use -h for humidity)
 tapo-hub --interval 60   # Refresh every 60 seconds
+tapo-hub gui              # Open the local graphical dashboard
 ```
+
+The dashboard is served only on `127.0.0.1`, opens in your browser, and refreshes
+readings every 30 seconds. Use `tapo-hub gui --no-browser` to start the local
+server without opening a browser, or `tapo-hub gui --port 8766` to choose a
+different local port. Press `Ctrl+C` in the terminal to stop it.
 
 You can override the configured hub address for an individual run:
 

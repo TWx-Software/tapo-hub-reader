@@ -11,6 +11,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = [
+    "flask>=3.0",
     "keyring>=25.0",
     "rich>=13.7",
     "tapo>=0.13.0,<1.0",
@@ -31,3 +32,6 @@ tapo-hub = "tapo_hub.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+tapo_hub = ["templates/*.html", "static/*.css", "static/*.js"]

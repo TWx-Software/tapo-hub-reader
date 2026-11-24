@@ -18,8 +18,6 @@ from rich.json import JSON
 from rich.panel import Panel
 from rich.table import Table
 
-from tapo import ApiClient
-
 from . import __version__
 from .config import load_config, save_config
 from .credentials import (
@@ -28,7 +26,8 @@ from .credentials import (
     get_password,
     save_password,
 )
-from .devices import get_device_records, get_measurement, redact_sensitive
+from .devices import get_measurement, redact_sensitive
+from .service import HubError, read_hub
 
 console = Console()
 error_console = Console(stderr=True)
@@ -76,9 +75,11 @@ def _add_root_arguments(parser: argparse.ArgumentParser) -> None:
         help="print machine-readable JSON instead of a formatted view",
     )
     parser.add_argument(
+        "--short",
         "--raw",
+        dest="raw",
         action="store_true",
-        help="with -t/-h, print only the numeric values",
+        help="with -t/-h, print only numbers (one per sensor)",
     )
 
 
@@ -103,6 +104,14 @@ def _build_parser() -> argparse.ArgumentParser:
 
     auth_commands.add_parser("status", help="show whether credentials are configured")
     auth_commands.add_parser("logout", help="remove saved credentials")
+
+    gui_parser = commands.add_parser(
+        "gui", help="open the local browser-based sensor dashboard"
+    )
+    gui_parser.add_argument("--port", type=int, default=8765, help="local port")
+    gui_parser.add_argument(
+        "--no-browser", action="store_true", help="do not open a browser automatically"
+    )
     return parser
 
 
@@ -290,26 +299,6 @@ def _display_measurements(
         console.print(table)
 
 
-async def _read_from_hub(hub_ip: str) -> list[dict[str, Any]]:
-    config = load_config()
-    username = config.get("username")
-    if not username:
-        raise AppError("Run 'tapo-hub auth setup' first to configure your account.")
-    password = get_password(str(username))
-    if not password:
-        raise AppError(
-            "No password is saved in the system keyring. Run 'tapo-hub auth setup'."
-        )
-    try:
-        hub = await ApiClient(str(username), password).h100(hub_ip)
-        return await get_device_records(hub)
-    except Exception as exc:
-        raise AppError(
-            f"Could not read H100 at {hub_ip}: {exc}\n"
-            "Check the hub IP, local network access, firmware, and Tapo credentials."
-        ) from exc
-
-
 async def _run_reader(args: argparse.Namespace) -> None:
     config = load_config()
     hub_ip = args.hub_ip or config.get("hub_ip")
@@ -319,10 +308,12 @@ async def _run_reader(args: argparse.Namespace) -> None:
     if args.interval is not None and args.interval < 1:
         raise AppError("--interval must be at least 1 second.")
     if args.raw and not (args.temperature or args.humidity):
-        raise AppError("--raw can only be used with -t or -h.")
+        raise AppError("--short can only be used with -t or -h.")
+    if args.raw and args.json:
+        raise AppError("--short cannot be combined with --json.")
 
     while True:
-        records = await _read_from_hub(hub_ip)
+        records = await read_hub(hub_ip)
         if args.list:
             _display_inventory(records, args.json)
         elif args.temperature:
@@ -348,9 +339,14 @@ def main() -> int:
             elif args.auth_command == "logout":
                 _auth_logout()
             return 0
+        if args.command == "gui":
+            from .gui import run_gui
+
+            run_gui(args.port, open_browser=not args.no_browser)
+            return 0
         asyncio.run(_run_reader(args))
         return 0
-    except (AppError, CredentialError, ValueError) as exc:
+    except (AppError, CredentialError, HubError, ValueError) as exc:
         error_console.print(f"[red]Error:[/] {exc}")
         return 1
     except KeyboardInterrupt:

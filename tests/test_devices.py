@@ -1,6 +1,6 @@
 import asyncio
 
-from tapo_hub.cli import _build_parser
+from tapo_hub.cli import _build_parser, _display_measurements
 from tapo_hub.devices import get_device_records, get_measurement, redact_sensitive
 
 
@@ -57,6 +57,28 @@ def test_short_h_flag_selects_humidity_not_help():
     assert args.temperature is False
 
 
+def test_short_output_is_available_for_temperature_and_humidity():
+    temperature_args = _build_parser().parse_args(["-t", "--short"])
+    humidity_args = _build_parser().parse_args(["-h", "--short"])
+
+    assert temperature_args.temperature is True
+    assert temperature_args.raw is True
+    assert humidity_args.humidity is True
+    assert humidity_args.raw is True
+
+
+def test_short_measurement_output_contains_only_the_number(capsys):
+    record = {
+        "name": "Server room",
+        "parsed_data": {"current_temp": 25.399999618530273, "temp_unit": "celsius"},
+        "api_data": {},
+    }
+
+    _display_measurements([record], "temperature", as_json=False, raw=True)
+
+    assert capsys.readouterr().out == "25.4\n"
+
+
 def test_raw_api_fields_are_kept_and_name_is_decoded():
     class Sensor:
         nickname = "Server room"
@@ -107,3 +129,38 @@ def test_sensitive_fields_are_redacted_recursively():
         "master_key": "<redacted>",
         "nested": [{"refresh_token": "<redacted>", "status": "online"}],
     }
+
+
+def test_gui_api_returns_metrics_and_redacts_sensitive_data(monkeypatch):
+    from tapo_hub import gui
+
+    monkeypatch.setattr(gui, "load_config", lambda: {"hub_ip": "10.1.1.190"})
+
+    async def fake_read_hub(_hub_ip):
+        return [
+            {
+                "name": "Server room",
+                "model": "T310",
+                "device_id": "sensor-1",
+                "api_data": {
+                    "current_temp": 22.3,
+                    "current_humidity": 48,
+                    "temp_unit": "celsius",
+                    "master_key": "private",
+                },
+                "parsed_data": {},
+            }
+        ]
+
+    monkeypatch.setattr(gui, "read_hub", fake_read_hub)
+    client = gui.create_app().test_client()
+    assert client.get("/").status_code == 200
+    assert client.get("/static/style.css").status_code == 200
+    assert client.get("/static/app.js").status_code == 200
+    response = client.get("/api/devices")
+
+    assert response.status_code == 200
+    device = response.get_json()["devices"][0]
+    assert device["temperature"] == {"value": 22.3, "unit": "°C"}
+    assert device["humidity"] == {"value": 48, "unit": "%"}
+    assert device["data"]["master_key"] == "<redacted>"
