@@ -25,7 +25,7 @@ devices are still shown using the raw data returned by the hub.
 
 ## Install from a source checkout
 
-Python 3.10 or newer is required.
+Python 3.11 or newer is required (the upstream Tapo client requires 3.11+).
 
 ```bash
 git clone https://github.com/TWx-Software/tapo-hub-reader.git
