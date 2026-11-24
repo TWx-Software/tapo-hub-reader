@@ -1,6 +1,7 @@
 const icons = {
   temperature: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 14.8V5a3 3 0 0 0-6 0v9.8a5 5 0 1 0 6 0Z" stroke="currentColor" stroke-width="1.6"/><path d="M11 11v7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
   humidity: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3.5c-2.1 3.3-6 7.1-6 11.2a6 6 0 0 0 12 0c0-4.1-3.9-7.9-6-11.2Z" stroke="currentColor" stroke-width="1.6"/><path d="M9.5 15a2.5 2.5 0 0 0 2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+  power: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 3v6m6-6v6M7 9h10v3a5 5 0 0 1-10 0V9Zm5 8v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -55,10 +56,16 @@ function makeDeviceCard(device, index) {
   top.append(title, element("span", `status-badge${online ? "" : " offline"}`, device.status || "unknown"));
 
   const measurements = element("div", "measurements");
-  addMetric(measurements, "temperature", "TEMPERATURE", device.temperature);
-  addMetric(measurements, "humidity", "HUMIDITY", device.humidity);
+  if (device.power_device) {
+    measurements.classList.add("measurements-power-only");
+    addMetric(measurements, "power", "CURRENT POWER", device.power);
+  } else {
+    addMetric(measurements, "temperature", "TEMPERATURE", device.temperature);
+    addMetric(measurements, "humidity", "HUMIDITY", device.humidity);
+  }
 
   const metadata = element("div", "device-meta");
+  addMeta(metadata, "IP", device.ip);
   addMeta(metadata, "RSSI", device.rssi === undefined ? null : `${device.rssi} dBm`);
   if (device.low_battery === true) addMeta(metadata, "Battery", "Low");
   else if (device.low_battery === false) addMeta(metadata, "Battery", "OK");
@@ -70,7 +77,9 @@ function makeDeviceCard(device, index) {
   const pre = element("pre", "details-json", JSON.stringify(device.data, null, 2));
   details.append(pre);
 
-  card.append(top, measurements, metadata, details);
+  card.append(top, measurements, metadata);
+  if (device.error) card.append(element("div", "device-error", device.error));
+  card.append(details);
   return card;
 }
 
@@ -87,9 +96,18 @@ function renderDashboard(payload) {
   const devices = payload.devices || [];
   deviceRoot.replaceChildren(...devices.map(makeDeviceCard));
   $("#device-count").textContent = devices.length;
-  $("#device-foot").textContent = devices.length === 1 ? "H100 child device" : "H100 child devices";
+  $("#device-foot").textContent = "H100 sensors and local plugs";
   $("#temperature-count").textContent = devices.filter((device) => device.temperature).length;
   $("#humidity-count").textContent = devices.filter((device) => device.humidity).length;
+  const powerDevices = devices.filter((device) => device.power);
+  const totalPower = powerDevices.reduce(
+    (total, device) => total + Number(device.power.value || 0),
+    0,
+  );
+  $("#power-total").textContent = powerDevices.length ? `${totalPower.toFixed(0)} W` : "—";
+  $("#power-foot").textContent = powerDevices.length
+    ? `Across ${powerDevices.length} P110 plug${powerDevices.length === 1 ? "" : "s"}`
+    : "No P110 power reading";
   $("#hub-address").textContent = payload.hub_ip || "H100";
   $("#updated-at").textContent = payload.updated_at
     ? `Updated ${new Date(payload.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`

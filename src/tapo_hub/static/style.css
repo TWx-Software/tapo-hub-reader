@@ -112,7 +112,7 @@ h1 span { color: var(--cyan); }
 .hub-chip small { color: #718098; font-size: 9px; letter-spacing: .16em; }
 .hub-chip strong { font-size: 12px; color: #e3ebf7; font-weight: 550; }
 
-.overview { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.overview { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .overview-card {
   position: relative; min-height: 137px; overflow: hidden;
   padding: 21px 22px; border: 1px solid var(--line); border-radius: 15px;
@@ -128,6 +128,7 @@ h1 span { color: var(--cyan); }
 .overview-icon svg { width: 24px; height: 24px; }
 .temp-icon { color: var(--blue); background: rgba(128,169,255,.09); }
 .humidity-icon { color: var(--cyan); background: rgba(114,225,209,.09); }
+.power-icon { color: #ffc17f; background: rgba(255,193,127,.09); }
 
 .devices-section { padding-top: 53px; }
 .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 19px; }
@@ -148,6 +149,7 @@ h2 { margin: 10px 0 0; font-size: 25px; letter-spacing: -.04em; font-weight: 560
 .status-badge.offline { color: #f0b3a2; border-color: rgba(240,143,126,.2); background: rgba(180,85,72,.08); }
 
 .measurements { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 19px; }
+.measurements-power-only { grid-template-columns: 1fr; }
 .measurement {
   min-height: 110px; display: flex; flex-direction: column; justify-content: space-between;
   padding: 13px 14px; border: 1px solid rgba(148,171,207,.1); border-radius: 12px;
@@ -158,12 +160,14 @@ h2 { margin: 10px 0 0; font-size: 25px; letter-spacing: -.04em; font-weight: 560
 .measurement-value { font-size: clamp(25px, 3.2vw, 34px); line-height: 1; font-weight: 570; letter-spacing: -.06em; }
 .measurement-temp .measurement-label svg, .measurement-temp .measurement-value { color: var(--blue); }
 .measurement-humidity .measurement-label svg, .measurement-humidity .measurement-value { color: var(--cyan); }
+.measurement-power .measurement-label svg, .measurement-power .measurement-value { color: #ffc17f; }
 .measurement-value small { margin-left: 3px; font-size: 13px; color: #a6b4c9; font-weight: 450; letter-spacing: 0; }
 .measurement-empty { color: #5f6e84; }
 
 .device-meta { display: flex; flex-wrap: wrap; gap: 8px 17px; margin-top: 14px; color: #78869b; font-size: 10px; }
 .meta-item { display: inline-flex; align-items: center; gap: 5px; }
 .meta-value { color: #b0bdd0; }
+.device-error { margin-top: 12px; padding: 10px 12px; border-radius: 9px; color: #ffc0c6; background: rgba(153,55,68,.12); font-size: 11px; line-height: 1.5; }
 .device-details { margin-top: 15px; border-top: 1px solid rgba(148,171,207,.1); padding-top: 12px; }
 .device-details summary { color: #8391a8; font-size: 10px; cursor: pointer; list-style: none; }
 .device-details summary::-webkit-details-marker { display: none; }
@@ -190,13 +194,17 @@ h2 { margin: 10px 0 0; font-size: 25px; letter-spacing: -.04em; font-weight: 560
   .refresh-button span { display: none; }
   .intro { align-items: flex-start; flex-direction: column; padding: 42px 0 28px; }
   .hub-chip { align-self: stretch; }
-  .overview { grid-template-columns: 1fr; gap: 9px; }
+  .overview { grid-template-columns: repeat(2, 1fr); gap: 9px; }
   .overview-card { min-height: 115px; }
   .overview-icon { bottom: 15px; }
   .device-grid { grid-template-columns: 1fr; }
   .devices-section { padding-top: 40px; }
   .section-heading { align-items: flex-start; flex-direction: column; }
   .footer { flex-direction: column; margin-top: 28px; }
+}
+
+@media (max-width: 420px) {
+  .overview { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

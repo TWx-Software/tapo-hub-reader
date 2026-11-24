@@ -1,9 +1,10 @@
 # Tapo Hub Reader
 
 A local-first command-line tool for reading sensors and other child devices
-connected to a TP-Link Tapo H100 hub. It shows all fields returned by the
-hub's child-device API, including fields the Python client does not yet
-interpret, and can print temperature or humidity readings by themselves.
+connected to a TP-Link Tapo H100 hub, plus current power consumption from a
+Tapo P110 smart plug. It shows all fields returned by the hub's child-device
+API, including fields the Python client does not yet interpret, and can print
+temperature, humidity, or power readings by themselves.
 
 > This is an unofficial community project, not affiliated with or endorsed by
 > TP-Link. The H100 and Tapo are TP-Link trademarks.
@@ -15,6 +16,7 @@ interpret, and can print temperature or humidity readings by themselves.
 - Redact key/token/password fields in displayed and JSON output.
 - Show temperature (`-t`) or humidity (`-h`) values, with a number-only
   `--short` mode.
+- Read instantaneous P110 power consumption in watts.
 - Launch a polished local browser dashboard with `tapo-hub gui`.
 - Install the dashboard as a PWA in supported browsers on the computer running
   the local server.
@@ -71,6 +73,10 @@ tapo-hub -t              # Temperature readings
 tapo-hub -h              # Humidity readings
 tapo-hub -t --short      # Numbers only, one per sensor
 tapo-hub -h --short      # Numbers only, one per sensor
+tapo-hub config p110 --ip 10.1.1.58  # Save the P110 address for CLI and GUI
+tapo-hub power           # Current P110 power in watts
+tapo-hub power --short   # Just the watt number
+tapo-hub power --interval 5  # Refresh every 5 seconds
 tapo-hub --json          # Full data as JSON
 tapo-hub --help          # Help (use -h for humidity)
 tapo-hub --interval 60   # Refresh every 60 seconds
@@ -81,6 +87,8 @@ The dashboard is served only on `127.0.0.1`, opens in your browser, and refreshe
 readings every 30 seconds. Use `tapo-hub gui --no-browser` to start the local
 server without opening a browser, or `tapo-hub gui --port 8766` to choose a
 different local port. Press `Ctrl+C` in the terminal to stop it.
+If a P110 address is configured, its live power draw also appears in the
+dashboard and its device card.
 
 The dashboard can be installed from your browser's install option or menu. The
 PWA caches its app shell for offline access, but never caches sensor readings;

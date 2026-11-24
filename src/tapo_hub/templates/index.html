@@ -87,6 +87,14 @@
             <svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5c-2.1 3.3-6 7.1-6 11.2a6 6 0 0 0 12 0c0-4.1-3.9-7.9-6-11.2Z" stroke="currentColor" stroke-width="1.5"/><path d="M9.5 15a2.5 2.5 0 0 0 2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           </span>
         </article>
+        <article class="overview-card">
+          <span class="overview-label">CURRENT POWER DRAW</span>
+          <strong class="overview-value" id="power-total">—</strong>
+          <span class="overview-foot" id="power-foot">No P110 power reading</span>
+          <span class="overview-icon power-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M9 3v6m6-6v6M7 9h10v3a5 5 0 0 1-10 0V9Zm5 8v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </article>
       </section>
 
       <section class="devices-section">
@@ -101,8 +109,8 @@
         <div class="device-grid" id="devices"></div>
         <div class="empty-state" id="empty" hidden>
           <span class="empty-orbit" aria-hidden="true">⌁</span>
-          <strong>No child devices found</strong>
-          <p>Pair a sensor with your H100 hub and refresh the dashboard.</p>
+          <strong>No Tapo devices found</strong>
+          <p>Pair a sensor with your H100 or configure a P110 plug, then refresh.</p>
         </div>
       </section>
 

@@ -27,7 +27,7 @@ from .credentials import (
     save_password,
 )
 from .devices import get_measurement, redact_sensitive
-from .service import HubError, read_hub
+from .service import DeviceError, HubError, read_hub, read_p110
 
 console = Console()
 error_console = Console(stderr=True)
@@ -86,7 +86,7 @@ def _add_root_arguments(parser: argparse.ArgumentParser) -> None:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="tapo-hub",
-        description="Read sensors and other child devices connected to a Tapo H100.",
+        description="Read Tapo H100 sensors and local smart-plug power.",
         add_help=False,
     )
     _add_root_arguments(parser)
@@ -104,6 +104,37 @@ def _build_parser() -> argparse.ArgumentParser:
 
     auth_commands.add_parser("status", help="show whether credentials are configured")
     auth_commands.add_parser("logout", help="remove saved credentials")
+
+    config_parser = commands.add_parser(
+        "config", help="configure local Tapo device addresses"
+    )
+    config_commands = config_parser.add_subparsers(
+        dest="config_command", required=True
+    )
+    p110_config = config_commands.add_parser(
+        "p110", help="save the address of a Tapo P110 plug"
+    )
+    p110_config.add_argument("--ip", required=True, metavar="IP")
+    config_commands.add_parser("show", help="show configured device addresses")
+
+    power_parser = commands.add_parser(
+        "power", help="read current power consumption from a Tapo P110"
+    )
+    power_parser.add_argument("--ip", metavar="IP", help="P110 IP address override")
+    power_parser.add_argument(
+        "--short",
+        "--raw",
+        dest="short",
+        action="store_true",
+        help="print only the current power number in watts",
+    )
+    power_parser.add_argument("--json", action="store_true", help="print JSON")
+    power_parser.add_argument(
+        "--interval",
+        type=int,
+        metavar="SECONDS",
+        help="repeat the reading at this interval",
+    )
 
     gui_parser = commands.add_parser(
         "gui", help="open the local browser-based sensor dashboard"
@@ -171,6 +202,23 @@ def _auth_logout() -> None:
     console.print("Saved Tapo credentials removed from the system keyring.")
 
 
+def _configure_p110(ip_address: str) -> None:
+    config = load_config()
+    config["p110_ip"] = _validate_ip(ip_address)
+    save_config(config)
+    console.print(f"Saved P110 address: [cyan]{config['p110_ip']}[/]")
+
+
+def _show_config() -> None:
+    config = load_config()
+    table = Table(title="Configured Tapo devices", box=box.ROUNDED)
+    table.add_column("Device", style="cyan")
+    table.add_column("Address")
+    table.add_row("H100 hub", str(config.get("hub_ip") or "not configured"))
+    table.add_row("P110 plug", str(config.get("p110_ip") or "not configured"))
+    console.print(table)
+
+
 def _display_name(record: dict[str, Any]) -> str:
     return str(record.get("name") or "Unnamed device")
 
@@ -205,6 +253,26 @@ def _display_inventory(records: list[dict[str, Any]], as_json: bool) -> None:
         )
     console.print(table)
     console.print(f"{len(records)} device(s)")
+
+
+def _display_power(reading: dict[str, Any], as_json: bool, short: bool) -> None:
+    if as_json:
+        print(json.dumps(reading, ensure_ascii=False, indent=2, default=str))
+    elif short:
+        print(reading["current_power_w"])
+    else:
+        table = Table(title="Current power consumption", box=box.ROUNDED)
+        table.add_column("Device", style="cyan")
+        table.add_column("Model", style="magenta")
+        table.add_column("IP")
+        table.add_column("Power", justify="right", style="green")
+        table.add_row(
+            str(reading["name"]),
+            str(reading["model"]),
+            str(reading["ip_address"]),
+            f"{reading['current_power_w']} W",
+        )
+        console.print(table)
 
 
 def _display_all_data(
@@ -299,6 +367,28 @@ def _display_measurements(
         console.print(table)
 
 
+async def _run_power(args: argparse.Namespace) -> None:
+    config = load_config()
+    ip_address = args.ip or config.get("p110_ip")
+    if not ip_address:
+        raise AppError(
+            "Configure the plug with 'tapo-hub config p110 --ip IP' "
+            "or pass 'tapo-hub power --ip IP'."
+        )
+    ip_address = _validate_ip(ip_address)
+    if args.interval is not None and args.interval < 1:
+        raise AppError("--interval must be at least 1 second.")
+    if args.short and args.json:
+        raise AppError("--short cannot be combined with --json.")
+
+    while True:
+        reading = await read_p110(ip_address)
+        _display_power(reading, args.json, args.short)
+        if args.interval is None:
+            break
+        await asyncio.sleep(args.interval)
+
+
 async def _run_reader(args: argparse.Namespace) -> None:
     config = load_config()
     hub_ip = args.hub_ip or config.get("hub_ip")
@@ -339,6 +429,15 @@ def main() -> int:
             elif args.auth_command == "logout":
                 _auth_logout()
             return 0
+        if args.command == "config":
+            if args.config_command == "p110":
+                _configure_p110(args.ip)
+            elif args.config_command == "show":
+                _show_config()
+            return 0
+        if args.command == "power":
+            asyncio.run(_run_power(args))
+            return 0
         if args.command == "gui":
             from .gui import run_gui
 
@@ -346,7 +445,7 @@ def main() -> int:
             return 0
         asyncio.run(_run_reader(args))
         return 0
-    except (AppError, CredentialError, HubError, ValueError) as exc:
+    except (AppError, CredentialError, DeviceError, HubError, ValueError) as exc:
         error_console.print(f"[red]Error:[/] {exc}")
         return 1
     except KeyboardInterrupt:

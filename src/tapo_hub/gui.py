@@ -13,7 +13,7 @@ from flask import Flask, Response, jsonify, render_template, send_from_directory
 
 from .config import load_config
 from .devices import get_measurement, redact_sensitive
-from .service import read_hub
+from .service import read_hub, read_p110
 
 
 def _rounded(value: Any) -> Any:
@@ -92,6 +92,39 @@ def create_app() -> Flask:
                         "data": data,
                     }
                 )
+
+            p110_ip = config.get("p110_ip")
+            if p110_ip:
+                try:
+                    plug = asyncio.run(read_p110(str(p110_ip)))
+                    devices.append(
+                        {
+                            "name": plug["name"],
+                            "model": plug["model"],
+                            "device_id": plug.get("device_id"),
+                            "ip": plug["ip_address"],
+                            "status": "online",
+                            "power_device": True,
+                            "power": {
+                                "value": _rounded(plug["current_power_w"]),
+                                "unit": "W",
+                            },
+                            "data": plug["device_info"],
+                        }
+                    )
+                except Exception as exc:
+                    devices.append(
+                        {
+                            "name": f"Tapo P110 ({p110_ip})",
+                            "model": "P110",
+                            "ip": str(p110_ip),
+                            "status": "unavailable",
+                            "power_device": True,
+                            "power": None,
+                            "error": str(exc),
+                            "data": {"error": str(exc)},
+                        }
+                    )
 
             response = Response(
                 json.dumps(

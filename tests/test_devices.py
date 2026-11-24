@@ -1,7 +1,7 @@
 import asyncio
 import json
 
-from tapo_hub.cli import _build_parser, _display_measurements
+from tapo_hub.cli import _build_parser, _display_measurements, _display_power
 from tapo_hub.devices import get_device_records, get_measurement, redact_sensitive
 
 
@@ -80,6 +80,65 @@ def test_short_measurement_output_contains_only_the_number(capsys):
     assert capsys.readouterr().out == "25.4\n"
 
 
+def test_power_subcommand_supports_short_output():
+    args = _build_parser().parse_args(["power", "--short"])
+
+    assert args.command == "power"
+    assert args.short is True
+
+
+def test_short_power_output_contains_only_the_number(capsys):
+    reading = {
+        "name": "Server plug",
+        "model": "P110",
+        "ip_address": "10.1.1.58",
+        "current_power_w": 84,
+    }
+
+    _display_power(reading, as_json=False, short=True)
+
+    assert capsys.readouterr().out == "84\n"
+
+
+def test_read_p110_returns_current_power_in_watts(monkeypatch):
+    from tapo_hub import service
+
+    class DeviceInfo:
+        nickname = "Server plug"
+        model = "P110"
+        device_id = "plug-1"
+
+        def to_dict(self):
+            return {"nickname": self.nickname, "model": self.model}
+
+    class Power:
+        current_power = 84
+
+    class Plug:
+        async def get_device_info(self):
+            return DeviceInfo()
+
+        async def get_current_power(self):
+            return Power()
+
+    class Client:
+        async def p110(self, ip_address):
+            assert ip_address == "10.1.1.58"
+            return Plug()
+
+    monkeypatch.setattr(
+        service, "load_config", lambda: {"username": "account@example.test"}
+    )
+    monkeypatch.setattr(service, "get_password", lambda _username: "secret")
+    monkeypatch.setattr(service, "ApiClient", lambda _username, _password: Client())
+
+    reading = asyncio.run(service.read_p110("10.1.1.58"))
+
+    assert reading["name"] == "Server plug"
+    assert reading["current_power_w"] == 84
+    assert reading["device_info"]["current_power_w"] == 84
+
+
 def test_raw_api_fields_are_kept_and_name_is_decoded():
     class Sensor:
         nickname = "Server room"
@@ -135,7 +194,11 @@ def test_sensitive_fields_are_redacted_recursively():
 def test_gui_api_returns_metrics_and_redacts_sensitive_data(monkeypatch):
     from tapo_hub import gui
 
-    monkeypatch.setattr(gui, "load_config", lambda: {"hub_ip": "10.1.1.190"})
+    monkeypatch.setattr(
+        gui,
+        "load_config",
+        lambda: {"hub_ip": "10.1.1.190", "p110_ip": "10.1.1.58"},
+    )
 
     async def fake_read_hub(_hub_ip):
         return [
@@ -154,6 +217,18 @@ def test_gui_api_returns_metrics_and_redacts_sensitive_data(monkeypatch):
         ]
 
     monkeypatch.setattr(gui, "read_hub", fake_read_hub)
+
+    async def fake_read_p110(_ip_address):
+        return {
+            "name": "Server plug",
+            "model": "P110",
+            "device_id": "plug-1",
+            "ip_address": "10.1.1.58",
+            "current_power_w": 84,
+            "device_info": {"current_power_w": 84},
+        }
+
+    monkeypatch.setattr(gui, "read_p110", fake_read_p110)
     client = gui.create_app().test_client()
     assert client.get("/").status_code == 200
     assert client.get("/static/style.css").status_code == 200
@@ -175,7 +250,11 @@ def test_gui_api_returns_metrics_and_redacts_sensitive_data(monkeypatch):
 
     assert response.status_code == 200
     assert response.headers["Cache-Control"] == "no-store"
-    device = response.get_json()["devices"][0]
+    devices = response.get_json()["devices"]
+    device = devices[0]
     assert device["temperature"] == {"value": 22.3, "unit": "°C"}
     assert device["humidity"] == {"value": 48, "unit": "%"}
     assert device["data"]["master_key"] == "<redacted>"
+    plug = devices[1]
+    assert plug["name"] == "Server plug"
+    assert plug["power"] == {"value": 84, "unit": "W"}
