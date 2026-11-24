@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tapo-hub-reader"
+version = "0.1.0"
+description = "A local-first CLI for reading devices connected to Tapo H100 hubs"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+dependencies = [
+    "keyring>=25.0",
+    "rich>=13.7",
+    "tapo>=0.13.0,<1.0",
+]
+classifiers = [
+    "Environment :: Console",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Home Automation",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+tapo-hub = "tapo_hub.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,94 @@
+# Tapo Hub Reader
+
+A local-first command-line tool for reading sensors and other child devices
+connected to a TP-Link Tapo H100 hub. It shows all fields returned by the
+hub's child-device API, including fields the Python client does not yet
+interpret, and can print temperature or humidity readings by themselves.
+
+> This is an unofficial community project, not affiliated with or endorsed by
+> TP-Link. The H100 and Tapo are TP-Link trademarks.
+
+## Features
+
+- Discover and list child devices paired with an H100.
+- Display the complete child-device data returned by the local API.
+- Show temperature (`-t`) or humidity (`-h`) values, with a raw numeric mode.
+- Save the Tapo account password in the desktop's system keyring—not in this
+  project or its configuration file.
+- Read locally from the H100; no cloud dashboard or database is required.
+- JSON output for scripting and integrations.
+
+The underlying Tapo library documents support for H100 child devices including
+KE100, S200B/S200D, S210, T100, T110, T300, T310, and T315. Unknown child
+devices are still shown using the raw data returned by the hub.
+
+## Install from a source checkout
+
+Python 3.10 or newer is required.
+
+```bash
+git clone https://github.com/TWx-Software/tapo-hub-reader.git
+cd tapo-hub-reader
+python3 -m venv .venv
+.venv/bin/python -m pip install .
+source .venv/bin/activate
+```
+
+On Fedora/KDE, ensure KDE Wallet is running and unlocked. On GNOME, use GNOME
+Keyring. The Python `keyring` package uses the desktop's Secret Service
+keyring; it does not fall back to storing the password in plaintext.
+
+## First-time setup
+
+Save your account and hub address once:
+
+```bash
+tapo-hub auth setup --hub-ip 10.1.1.190
+```
+
+The command prompts for your Tapo account email and password. The password is
+stored in the OS keyring. The config file under
+`~/.config/tapo-hub-reader/` contains only your account name and hub IP.
+
+Check or remove the saved credentials:
+
+```bash
+tapo-hub auth status
+tapo-hub auth logout
+```
+
+## Usage
+
+```bash
+tapo-hub                 # Full data for all child devices
+tapo-hub --list          # Names, models, and IDs
+tapo-hub -t              # Temperature readings
+tapo-hub -h              # Humidity readings
+tapo-hub -t --raw        # Numeric temperature values only
+tapo-hub -h --raw        # Numeric humidity values only
+tapo-hub --json          # Full data as JSON
+tapo-hub --help          # Help (use -h for humidity)
+tapo-hub --interval 60   # Refresh every 60 seconds
+```
+
+You can override the configured hub address for an individual run:
+
+```bash
+tapo-hub --hub-ip 10.1.1.190 --list
+```
+
+The computer running the command must be able to reach the H100 on the local
+network. The T310 itself communicates with the H100 and does not need its own
+Wi-Fi address.
+
+## Development
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -e .
+.venv/bin/python -m compileall -q src
+```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
