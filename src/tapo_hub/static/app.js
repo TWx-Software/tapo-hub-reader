@@ -122,3 +122,11 @@ async function refresh() {
 refreshButton.addEventListener("click", refresh);
 refresh();
 window.setInterval(refresh, 30000);
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/service-worker.js").catch((error) => {
+      console.warn("Offline app shell could not be enabled:", error);
+    });
+  });
+}

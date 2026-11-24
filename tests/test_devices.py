@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 from tapo_hub.cli import _build_parser, _display_measurements
 from tapo_hub.devices import get_device_records, get_measurement, redact_sensitive
@@ -157,9 +158,23 @@ def test_gui_api_returns_metrics_and_redacts_sensitive_data(monkeypatch):
     assert client.get("/").status_code == 200
     assert client.get("/static/style.css").status_code == 200
     assert client.get("/static/app.js").status_code == 200
+    manifest_response = client.get("/static/manifest.webmanifest")
+    assert manifest_response.status_code == 200
+    manifest = json.loads(manifest_response.data)
+    assert manifest["display"] == "standalone"
+    assert {icon["sizes"] for icon in manifest["icons"]} >= {
+        "192x192",
+        "512x512",
+    }
+    assert client.get("/static/app-icon-192.png").status_code == 200
+    assert client.get("/favicon.ico").status_code == 200
+    service_worker = client.get("/service-worker.js")
+    assert service_worker.status_code == 200
+    assert service_worker.headers["Service-Worker-Allowed"] == "/"
     response = client.get("/api/devices")
 
     assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "no-store"
     device = response.get_json()["devices"][0]
     assert device["temperature"] == {"value": 22.3, "unit": "°C"}
     assert device["humidity"] == {"value": 48, "unit": "%"}

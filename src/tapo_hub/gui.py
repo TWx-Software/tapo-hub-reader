@@ -9,7 +9,7 @@ import webbrowser
 from datetime import datetime
 from typing import Any
 
-from flask import Flask, Response, jsonify, render_template
+from flask import Flask, Response, jsonify, render_template, send_from_directory
 
 from .config import load_config
 from .devices import get_measurement, redact_sensitive
@@ -26,6 +26,25 @@ def create_app() -> Flask:
     @app.get("/")
     def dashboard() -> str:
         return render_template("index.html")
+
+    @app.get("/service-worker.js")
+    def service_worker() -> Response:
+        response = send_from_directory(
+            app.static_folder,
+            "service-worker.js",
+            mimetype="application/javascript",
+        )
+        response.headers["Service-Worker-Allowed"] = "/"
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+    @app.get("/favicon.ico")
+    def favicon() -> Response:
+        return send_from_directory(
+            app.static_folder,
+            "app-icon-192.png",
+            mimetype="image/png",
+        )
 
     @app.get("/api/devices")
     def devices_api() -> tuple[Response, int] | Response:
@@ -74,7 +93,7 @@ def create_app() -> Flask:
                     }
                 )
 
-            return Response(
+            response = Response(
                 json.dumps(
                     {
                         "hub_ip": hub_ip,
@@ -88,8 +107,12 @@ def create_app() -> Flask:
                 ),
                 mimetype="application/json",
             )
+            response.headers["Cache-Control"] = "no-store"
+            return response
         except Exception as exc:
-            return jsonify({"error": str(exc)}), 503
+            response, status = jsonify({"error": str(exc)}), 503
+            response.headers["Cache-Control"] = "no-store"
+            return response, status
 
     return app
 
